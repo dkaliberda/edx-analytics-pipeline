@@ -196,7 +196,7 @@ class ObfuscateCoursewareStudentModule(ObfuscateSqlDumpTask):
             # Traverse the dictionary, looking for entries that need to be scrubbed.
             updated_state_dict = self.obfuscator.obfuscate_structure(state_dict, u"state", user_info)
         except Exception:   # pylint:  disable=broad-except
-            log.exception(u"Unable to parse state as JSON for record %s: type = %s, state = %r",
+            log.warning(u"Unable to parse state as JSON for record %s: type = %s, state = %r",
                           row[0], type(state_str), state_str)
             updated_state_dict = {}
 
