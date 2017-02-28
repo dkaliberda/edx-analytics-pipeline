@@ -438,7 +438,7 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
             output_file.write('\n')
             # WARNING: This line ensures that Hadoop knows that our process is not sitting in an infinite loop.
             # Do not remove it.
-            self.incr_counter('Event Record Exports', 'Raw Bytes Written', len(value) + 1)
+            self.incr_counter(self.counter_category_name, 'Raw Bytes Written', len(value) + 1)
 
     def output_path_for_key(self, key):
         """
@@ -490,6 +490,11 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
         else:
             return None
 
+    # This is a placeholder.  It is expected to be overridden in derived classes.
+    @property
+    def counter_category_name(self):
+        return 'Event Record Exports'
+
     def convert_date(self, date_string):
         """Converts date from string format to date object, for use by DateField."""
         if date_string:
@@ -499,7 +504,7 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
                 # ciso8601.parse_datetime(ts).astimezone(pytz.utc).date().isoformat()
                 return self.date_field_for_converting.deserialize_from_string(date_string).isoformat()
             except ValueError:
-                self.incr_counter('Event Record Exports', 'Cannot convert to date', 1)
+                self.incr_counter(self.counter_category_name, 'Cannot convert to date', 1)
                 # Don't bother to make sure we return a good value
                 # within the interval, so we can find the output for
                 # debugging.  Should not be necessary, as this is only
@@ -507,7 +512,7 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
                 return u"BAD: {}".format(date_string)
                 # return self.lower_bound_date_string
         else:
-            self.incr_counter('Event Record Exports', 'Missing date', 1)
+            self.incr_counter(self.counter_category_name, 'Missing date', 1)
             return date_string
 
     def _canonicalize_user_agent(self, agent):
@@ -524,6 +529,7 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
         try:
             user_agent = user_agents.parse(agent)
         except Exception:  # If the user agent can't be parsed, just drop the agent data on the floor since it's of no use to us.
+            self.incr_counter(self.counter_category_name, 'Unparseable agent', 1)
             return agent_dict
 
         device_type = ''  # It is possible that the user agent isn't any of the below.
@@ -542,6 +548,8 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
             agent_dict['os'] = user_agent.os.family
             agent_dict['browser'] = user_agent.browser.family
             agent_dict['touch_capable'] = unicode(user_agent.is_touch_capable)
+        else:
+            self.incr_counter(self.counter_category_name, 'Unrecognized agent type', 1)
 
         return agent_dict
 
@@ -566,6 +574,7 @@ class BaseEventRecordDataTask(EventRecordDataDownstreamMixin, MultiOutputMapRedu
                 if value_length > field_length:
                     log.error("Record value length (%d) exceeds max length (%d) for field %s: %r", value_length, field_length, event_record_key, value)
                     value = u"{}...".format(value[:field_length - 4])
+                    self.incr_counter(self.counter_category_name, 'Truncated string value', 1)
             event_dict[event_record_key] = value
         elif isinstance(event_record_field, IntegerField):
             try:
@@ -621,6 +630,10 @@ class TrackingEventRecordDataTask(EventLogSelectionMixin, BaseEventRecordDataTas
     event_mapping = None
     PROJECT_NAME = 'tracking_prod'
 
+    @property
+    def counter_category_name(self):
+        return 'Tracking Event Exports'
+
     def get_event_emission_time(self, event):
         return super(TrackingEventRecordDataTask, self).get_event_time(event)
 
@@ -628,6 +641,7 @@ class TrackingEventRecordDataTask(EventLogSelectionMixin, BaseEventRecordDataTas
         try:
             return event['context']['received_at']
         except KeyError:
+            self.incr_counter(self.counter_category_name, 'Using emission time', 1)
             return self.get_event_emission_time(event)
 
     def get_event_time(self, event):
@@ -691,10 +705,12 @@ class TrackingEventRecordDataTask(EventLogSelectionMixin, BaseEventRecordDataTas
 
         event_type = event.get('event_type')
         if event_type is None:
+            self.incr_counter(self.counter_category_name, 'Missing Event Type', 1)
             return
 
         # Ignore events that begin with a slash (i.e. implicit events).
         if event_type.startswith('/'):
+            self.incr_counter(self.counter_category_name, 'Implicit Events Ignored', 1)
             return
 
         username = event.get('username', '').strip()
@@ -707,12 +723,14 @@ class TrackingEventRecordDataTask(EventLogSelectionMixin, BaseEventRecordDataTas
 
         event_data = eventlog.get_event_data(event)
         if event_data is None:
+            self.incr_counter(self.counter_category_name, 'Missing Event Data', 1)
             return
         # Put the fixed value back, so it can be properly mapped.
         event['event'] = event_data
 
         event_source = event.get('event_source')
         if event_source is None:
+            self.incr_counter(self.counter_category_name, 'Missing Event Source', 1)
             return
 
         if (event_source, event_type) in self.known_events:
@@ -743,6 +761,8 @@ class TrackingEventRecordDataTask(EventLogSelectionMixin, BaseEventRecordDataTas
         record = EventRecord(**event_dict)
 
         key = (date_received, project_name)
+
+        self.incr_counter(self.counter_category_name, 'Output From Mapper', 1)
 
         # Convert to form for output by reducer here,
         # so that reducer doesn't do any conversion.
@@ -783,6 +803,10 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
 
     event_mapping = None
 
+    @property
+    def counter_category_name(self):
+        return 'Segment Event Exports'
+
     def _get_project_name(self, project_id):
         if project_id not in self.project_names:
             if self.config is None:
@@ -802,27 +826,27 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
                     event_time = self.extended_normalize_time(event[key])
                     if event_time is None:
                         log.error("Really unparseable %s time from event: %r", key, event)
-                        self.incr_counter('Event', 'Unparseable {} Time Field'.format(key), 1)
+                        self.incr_counter(self.counter_category_name, 'Unparseable {} Time Field'.format(key), 1)
                     else:
                         # Log this for now, until we have confidence this is reasonable.
                         log.warning("Parsable unparseable type for %s time in event: %r", key, event)
-                        self.incr_counter('Event', 'Parsable unparseable for {} Time Field'.format(key), 1)
+                        self.incr_counter(self.counter_category_name, 'Parsable unparseable for {} Time Field'.format(key), 1)
                 except Exception:
                     log.error("Unparseable %s time from event: %r", key, event)
-                    self.incr_counter('Event', 'Unparseable {} Time Field'.format(key), 1)
+                    self.incr_counter(self.counter_category_name, 'Unparseable {} Time Field'.format(key), 1)
             return event_time
         except KeyError:
             log.error("Missing %s time from event: %r", key, event)
-            self.incr_counter('Event', 'Missing {} Time Field'.format(key), 1)
+            self.incr_counter(self.counter_category_name, 'Missing {} Time Field'.format(key), 1)
             return None
         except TypeError:
             log.error("Bad type for %s time in event: %r", key, event)
-            self.incr_counter('Event', 'Bad type for {} Time Field'.format(key), 1)
+            self.incr_counter(self.counter_category_name, 'Bad type for {} Time Field'.format(key), 1)
             return None
         except UnicodeEncodeError:
             # This is more specific than ValueError, so it is processed first.
             log.error("Bad encoding for %s time in event: %r", key, event)
-            self.incr_counter('Event', 'Bad encoding for {} Time Field'.format(key), 1)
+            self.incr_counter(self.counter_category_name, 'Bad encoding for {} Time Field'.format(key), 1)
             return None
         except ValueError:
             # Try again, with a more powerful (and more flexible) parser.
@@ -830,15 +854,15 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
                 event_time = self.extended_normalize_time(event[key])
                 if event_time is None:
                     log.error("Unparseable %s time from event: %r", key, event)
-                    self.incr_counter('Event', 'Unparseable {} Time Field'.format(key), 1)
+                    self.incr_counter(self.counter_category_name, 'Unparseable {} Time Field'.format(key), 1)
                 else:
                     # Log this for now, until we have confidence this is reasonable.
                     log.warning("Parsable bad value for %s time in event: %r", key, event)
-                    self.incr_counter('Event', 'Parsable bad value for {} Time Field'.format(key), 1)
+                    self.incr_counter(self.counter_category_name, 'Parsable bad value for {} Time Field'.format(key), 1)
                 return event_time
             except Exception:
                 log.error("Bad value for %s time in event: %r", key, event)
-                self.incr_counter('Event', 'Bad value for {} Time Field'.format(key), 1)
+                self.incr_counter(self.counter_category_name, 'Bad value for {} Time Field'.format(key), 1)
             return None
 
     def get_event_arrival_time(self, event):
@@ -929,29 +953,31 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
         return self.event_mapping
 
     def mapper(self, line):
+        self.incr_counter(self.counter_category_name, 'Inputs', 1)
+
         value = self.get_event_and_date_string(line)
         if value is None:
             return
         event, date_received = value
-        self.incr_counter('Segment_Event_Dist', 'Inputs with Dates', 1)
+        self.incr_counter(self.counter_category_name, 'Inputs with Dates', 1)
 
         segment_type = event.get('type')
-        self.incr_counter('Segment_Event_Dist', u'Type {}'.format(segment_type), 1)
+        self.incr_counter(self.counter_category_name, u'Type {}'.format(segment_type), 1)
 
         channel = event.get('channel')
-        self.incr_counter('Segment_Event_Dist', u'Channel {}'.format(channel), 1)
+        self.incr_counter(self.counter_category_name, u'Channel {}'.format(channel), 1)
 
         if segment_type == 'track':
             event_type = event.get('event')
 
             if event_type is None or date_received is None:
                 # Ignore if any of the keys is None
-                self.incr_counter('Segment_Event_Dist', 'Tracking with missing type', 1)
+                self.incr_counter(self.counter_category_name, 'Tracking with missing type or date', 1)
                 return
 
             if event_type.startswith('/'):
                 # Ignore events that begin with a slash.  How many?
-                self.incr_counter('Segment_Event_Dist', 'Tracking with implicit type', 1)
+                self.incr_counter(self.counter_category_name, 'Tracking with implicit type', 1)
                 return
 
             # Not all 'track' events have event_source information.  In particular, edx.bi.XX events.
@@ -964,22 +990,22 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
                     event_source = 'track-server'
                 elif (event_source, event_type) in self.known_events:
                     event_category = self.known_events[(event_source, event_type)]
-                self.incr_counter('Segment_Event_Dist', 'Tracking server', 1)
+                self.incr_counter(self.counter_category_name, 'Tracking server', 1)
             else:
                 # expect that channel is 'client'.
                 event_source = channel
-                self.incr_counter('Segment_Event_Dist', 'Tracking non-server', 1)
+                self.incr_counter(self.counter_category_name, 'Tracking non-server', 1)
 
         else:
-            # 'page' or 'identify'
+            # type is 'page' or 'identify'
             event_category = segment_type
             event_type = segment_type
             event_source = channel
 
-        self.incr_counter('Segment_Event_Dist', 'Output From Mapper', 1)
-
         project_id = event.get('projectId')
         project_name = self._get_project_name(project_id) or project_id
+
+        self.incr_counter(self.counter_category_name, u'Project {}'.format(project_name), 1)
 
         event_dict = {'version': VERSION}
         self.add_calculated_event_entry(event_dict, 'input_file', self.get_map_input_file())
@@ -990,7 +1016,6 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
         self.add_calculated_event_entry(event_dict, 'timestamp', self.get_event_emission_time(event))
         self.add_calculated_event_entry(event_dict, 'received_at', self.get_event_arrival_time(event))
         self.add_calculated_event_entry(event_dict, 'date', self.convert_date(date_received))
-
         self.add_agent_info(event_dict, event.get('context', {}).get('userAgent'))
         self.add_agent_info(event_dict, event.get('properties', {}).get('context', {}).get('agent'))
 
@@ -999,6 +1024,8 @@ class SegmentEventRecordDataTask(SegmentEventLogSelectionMixin, BaseEventRecordD
 
         record = EventRecord(**event_dict)
         key = (date_received, project_name)
+
+        self.incr_counter(self.counter_category_name, 'Output From Mapper', 1)
 
         # Convert to form for output by reducer here,
         # so that reducer doesn't do any conversion.

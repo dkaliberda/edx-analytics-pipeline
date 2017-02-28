@@ -275,6 +275,7 @@ class EventLogSelectionMixin(EventLogSelectionDownstreamMixin):
         """Default mapper implementation, that always outputs the log line, but with a configurable key."""
         event = eventlog.parse_json_event(line)
         if event is None:
+            self.incr_counter('Event', 'Unparseable Event', 1)
             return None
 
         event_time = self.get_event_time(event)
@@ -288,6 +289,7 @@ class EventLogSelectionMixin(EventLogSelectionDownstreamMixin):
         date_string = event_time.split("T")[0]
 
         if date_string < self.lower_bound_date_string or date_string >= self.upper_bound_date_string:
+            self.incr_counter('Event', 'Filtered Event Time', 1)
             return None
 
         return event, date_string
@@ -312,4 +314,5 @@ class EventLogSelectionMixin(EventLogSelectionDownstreamMixin):
                 return os.environ['map_input_file']
             except KeyError:
                 log.warn('mapreduce_map_input_file not defined in os.environ, unable to determine input file path')
+                self.incr_counter('Event', 'Missing map_input_file', 1)
                 return ''
