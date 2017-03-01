@@ -55,6 +55,14 @@ class RedshiftS3CopyToTable(S3CopyToTable):
         return self.credentials()['password']
 
     @property
+    def aws_access_key_id(self):
+        return ''
+
+    @property
+    def aws_secret_access_key(self):
+        return ''
+
+    @property
     def copy_options(self):
         return "DELIMITER '\t'"
 
