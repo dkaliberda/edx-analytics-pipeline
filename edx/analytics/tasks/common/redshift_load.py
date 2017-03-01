@@ -20,6 +20,7 @@ class RedshiftS3CopyToTable(S3CopyToTable):
         section = 'redshift'
         return {
             'host': config.get(section, 'host'),
+            'port': config.get(section, 'port'),
             'database': config.get(section, 'database'),
             'user': config.get(section, 'user'),
             'password': config.get(section, 'password'),
@@ -40,7 +41,7 @@ class RedshiftS3CopyToTable(S3CopyToTable):
 
     @property
     def host(self):
-        return self.credentials()['host']
+        return self.credentials()['host'] + ':' + return self.credentials()['port']
 
     @property
     def database(self):
