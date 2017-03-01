@@ -4,7 +4,7 @@ import logging
 import luigi
 from luigi import configuration
 from luigi.contrib.redshift import S3CopyToTable
-
+from edx.analytics.tasks.insights.enrollments import EnrollmentSummaryRecord
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 from edx.analytics.tasks.util.url import ExternalURL
 
@@ -13,9 +13,6 @@ log = logging.getLogger(__name__)
 
 class RedshiftS3CopyToTable(S3CopyToTable):
 
-    table_name = luigi.Parameter()
-    account_id = luigi.Parameter()
-    role = luigi.Parameter()
     path = luigi.Parameter()
 
     def credentials(self):
@@ -68,3 +65,10 @@ class RedshiftS3CopyToTable(S3CopyToTable):
             options=self.copy_options)
         )
 
+
+class LoadUserCourseSummaryToRedshift(RedshiftS3CopyToTable):
+    columns = EnrollmentSummaryRecord.get_sql_schema
+
+    @property
+    def table(self):
+        return 'd_user_course'
