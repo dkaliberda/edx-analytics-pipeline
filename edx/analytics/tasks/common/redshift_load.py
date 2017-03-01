@@ -41,7 +41,7 @@ class RedshiftS3CopyToTable(S3CopyToTable):
 
     @property
     def host(self):
-        return self.credentials()['host'] + ':' + return self.credentials()['port']
+        return self.credentials()['host'] + ':' +  self.credentials()['port']
 
     @property
     def database(self):
