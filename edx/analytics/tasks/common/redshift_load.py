@@ -46,11 +46,17 @@ class RedshiftS3CopyToTable(S3CopyToTable):
     def database(self):
         return self.credentials()['database']
 
+    @property
     def user(self):
         return self.credentials()['user']
 
+    @property
     def password(self):
         return self.credentials()['password']
+
+    @property
+    def copy_options(self):
+        return "DELIMITER '\t'"
 
     def copy(self, cursor, f):
         cursor.execute("""
