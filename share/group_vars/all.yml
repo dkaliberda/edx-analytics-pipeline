@@ -1,0 +1,13 @@
+---
+repos:
+  - url: "https://github.com/raccoongang/edx-analytics-pipeline.git"
+    branch: "ficus-rg"
+    dir_name: "{{ pipeline_repo_dir_name }}"
+
+root_data_dir: "/var/lib/analytics-tasks"
+root_log_dir: "/var/log/analytics-tasks"
+
+override_config: "/edx/app/hadoop/override.cfg"
+
+write_luigi_config: true
+

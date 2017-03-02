@@ -46,10 +46,10 @@
     # - secure_config: path/to/config.cfg on the remote machine, could be from a checked out repo
 
     - pipeline_repo_dir_name: repo
-    - repos:
-      - url: https://github.com/edx/edx-analytics-pipeline.git
-        branch: master
-        dir_name: "{{ pipeline_repo_dir_name }}"
+#    - repos:
+#      - url: https://github.com/edx/edx-analytics-pipeline.git
+#        branch: master
+#        dir_name: "{{ pipeline_repo_dir_name }}"
     - working_repo_dir: "{{ working_dir }}/{{ pipeline_repo_dir_name }}"
 
     - packages: []
@@ -106,7 +106,7 @@
       git: >
         repo={{ item.url }}
         dest={{ working_dir }}/{{ item.dir_name }}
-        version=master
+        version={{ item.branch }}
       with_items: repos
 
     - name: branches fetched
