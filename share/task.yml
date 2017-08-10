@@ -47,8 +47,8 @@
 
     - pipeline_repo_dir_name: repo
     - repos:
-      - url: https://github.com/edx/edx-analytics-pipeline.git
-        branch: master
+      - url: https://github.com/raccoongang/edx-analytics-pipeline.git
+        branch: ficus.3-rg
         dir_name: "{{ pipeline_repo_dir_name }}"
     - working_repo_dir: "{{ working_dir }}/{{ pipeline_repo_dir_name }}"
 
@@ -106,7 +106,7 @@
       git: >
         repo={{ item.url }}
         dest={{ working_dir }}/{{ item.dir_name }}
-        version=master
+        version=ficus.3-rg
       with_items: repos
 
     - name: branches fetched

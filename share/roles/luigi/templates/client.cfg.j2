@@ -1,4 +1,37 @@
 [hadoop]
-version: {{ luigi_hadoop_version }}
-command: {{ luigi_hadoop_command }}
-streaming-jar: {{ luigi_hadoop_streaming_jar }}
+python-executable=/usr/bin/python2.7
+luigi_hadoop_version: apache1
+luigi_hadoop_command: /edx/app/hadoop/hadoop-2.3.0/bin/hadoop
+luigi_hadoop_streaming_jar: /edx/app/hadoop/hadoop-2.3.0/share/hadoop/tools/lib/hadoop-streaming-2.3.0.jar
+streaming-jar: /edx/app/hadoop/hadoop-2.3.0/share/hadoop/tools/lib/hadoop-streaming-2.3.0.jar
+
+[hdfs]
+client = hadoopcli
+
+[hive]
+release = apache
+database = default
+
+[database-export]
+database = reports
+
+[database-import]
+database = edxapp
+
+[core]
+logging_conf_file = logging.cfg
+hdfs-tmp-dir = /tmp/
+
+[map-reduce]
+engine = hadoop
+remote_log_level = INFO
+
+[event-logs]
+expand_interval = 2 days
+
+[manifest]
+threshold = 500
+input_format = oddjob.ManifestTextInputFormat
+
+[answer-distribution]
+valid_response_types = choiceresponse,optionresponse,multiplechoiceresponse,numericalresponse,stringresponse,formularesponse
