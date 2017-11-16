@@ -3,6 +3,7 @@
 
 uninstall:
 	while pip uninstall -y edx.analytics.tasks; do true; done
+	pip install Babel==0.9.6
 	python setup.py clean
 
 install: requirements uninstall
