@@ -9,7 +9,7 @@ import boto.emr
 from subprocess import Popen, PIPE
 
 DEFAULT_REGION = 'us-east-1'
-
+DEFAULT_REGION = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
 
 def main():
     arg_parser = argparse.ArgumentParser(description='Get Traceback information from emr-logs.')
