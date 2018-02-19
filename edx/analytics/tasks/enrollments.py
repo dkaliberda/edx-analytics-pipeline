@@ -1011,6 +1011,9 @@ class ImportEnrollmentsIntoMysql(CourseSummaryEnrollmentDownstreamMixin,
             'enable_course_catalog': self.enable_course_catalog,
         }, **enrollment_kwargs)
 
+        import os
+        os.system('echo "{}" > /tmp/course_summary_kwargs'.format(course_summary_kwargs))
+        os.systen('echo "{}" > /tmp/enrollment_kwargs'.format(enrollment_kwargs))
         yield (
             CourseEnrollmentSummaryTableTask(**enrollment_kwargs),
             EnrollmentByGenderTask(**enrollment_kwargs),
