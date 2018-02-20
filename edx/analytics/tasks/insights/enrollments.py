@@ -2,6 +2,9 @@
 
 import logging
 import datetime
+import json
+from contextlib import closing
+import mysql.connector
 
 import luigi
 import luigi.task
@@ -24,6 +27,7 @@ from edx.analytics.tasks.util.hive import WarehouseMixin, HiveTableTask, HivePar
 from edx.analytics.tasks.util.overwrite import OverwriteOutputMixin
 from edx.analytics.tasks.util.record import Record, StringField, IntegerField, BooleanField, DateTimeField
 from edx.analytics.tasks.util.url import get_target_from_url, url_path_join, ExternalURL, UncheckedExternalURL
+from edx.analytics.tasks.common.mysql_dump import MysqlSelectTask
 
 log = logging.getLogger(__name__)
 DEACTIVATED = 'edx.course.enrollment.deactivated'
@@ -987,6 +991,68 @@ class ImportCourseSummaryEnrollmentsIntoMysql(CourseSummaryEnrollmentDownstreamM
             yield [task.hive_table_task for task in catalog_tasks]
 
 
+class UpdateCourseDatesTask(MysqlSelectTask):
+    credentials = luigi.Parameter(
+        config_path={'section': 'database-export', 'name': 'credentials'},
+        description='Path to the external access credentials file.',
+    )
+    database = luigi.Parameter(
+        config_path={'section': 'database-export', 'name': 'database'},
+        description='The name of the database to execute the query on.',
+    )
+    from_credentials = luigi.Parameter(
+        config_path={'section': 'database-import', 'name': 'credentials'},
+        description='Path to the external access credentials file.',
+    )
+    from_database = luigi.Parameter(
+        config_path={'section': 'database-import', 'name': 'database'},
+        description='The name of the database to execute the query on.',
+    )
+
+    def requires(self):
+        return {
+            'credentials': ExternalURL(url=self.credentials),
+            'from_credentials': ExternalURL(url=self.from_credentials)
+        }
+
+    @property
+    def filename(self):
+        return 'fake_file'
+
+    def from_connect(self):
+        cred = {}
+        with self.input()['from_credentials'].open('r') as from_credentials_file:
+            cred = json.load(from_credentials_file)
+
+        from_conn = mysql.connector.connect(
+            host=cred['host'],
+            port=int(cred['port']),
+            user=cred['username'],
+            password=cred['password'],
+            database=self.from_database,
+        )
+
+        return closing(from_conn)
+
+    def run(self):
+        with self.connect() as conn:
+            with self.from_connect() as from_conn:
+                try:
+                    cursor = conn.cursor(buffered=True)
+                    from_cursor = from_conn.cursor(buffered=True)
+                    from_cursor.execute('SELECT start, end, id FROM course_overviews_courseoverview')
+                    update = 'UPDATE course_meta_summary_enrollment SET start_time=%s, end_time=%s WHERE course_id=%s'
+                    while True:
+                        row = from_cursor.fetchone()
+                        if row is None:
+                            break
+                        cursor.execute(update, row)
+                        conn.commit()
+                finally:
+                    from_cursor.close()
+                    cursor.close()
+
+
 @workflow_entry_point
 class ImportEnrollmentsIntoMysql(CourseSummaryEnrollmentDownstreamMixin,
                                  luigi.WrapperTask):
@@ -1018,4 +1084,5 @@ class ImportEnrollmentsIntoMysql(CourseSummaryEnrollmentDownstreamMixin,
             EnrollmentByEducationLevelTask(**enrollment_kwargs),
             EnrollmentDailyTask(**enrollment_kwargs),
             ImportCourseSummaryEnrollmentsIntoMysql(**course_summary_kwargs),
+            UpdateCourseDatesTask(),
         )
