@@ -7,6 +7,7 @@ uninstall:
 
 install: requirements uninstall
 	python setup.py install --force
+	pip install Babel==0.9.6
 
 bootstrap: uninstall
 	pip install -U -r requirements/pre.txt
