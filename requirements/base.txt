@@ -2,7 +2,8 @@
 
 ansible==1.4.5 --no-binary ansible         # GPL v3 License
 #boto==2.22.1            # MIT
-git+https://github.com/dgamanenko/boto.git@ap-south-1#egg=boto
+git+https://github.com/dgamanenko/boto.git@us-east-1#egg=boto
+
 ecdsa==0.13 		# MIT
 Jinja2==2.8.1		# BSD
 pycrypto==2.6.1 	# public domain
