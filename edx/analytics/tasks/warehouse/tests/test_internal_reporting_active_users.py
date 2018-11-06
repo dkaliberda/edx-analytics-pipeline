@@ -4,9 +4,9 @@ from unittest import TestCase
 
 import luigi
 
-from edx.analytics.tasks.warehouse.load_internal_reporting_active_users import ActiveUsersTask
-from edx.analytics.tasks.common.tests.map_reduce_mixins import ReducerTestMixin, MapperTestMixin
+from edx.analytics.tasks.common.tests.map_reduce_mixins import MapperTestMixin, ReducerTestMixin
 from edx.analytics.tasks.util.tests.opaque_key_mixins import InitializeOpaqueKeysMixin
+from edx.analytics.tasks.warehouse.load_internal_reporting_active_users import ActiveUsersTask
 
 
 class ActiveUsersMapTest(InitializeOpaqueKeysMixin, MapperTestMixin, TestCase):
@@ -49,7 +49,7 @@ class ActiveUsersMapTest(InitializeOpaqueKeysMixin, MapperTestMixin, TestCase):
 
     def test_mapper(self):
         line = self.create_event_log_line()
-        self.assert_single_map_output(line, self.username, 1)
+        self.assert_single_map_output(line, ('2017-02-13', '2017-02-20', 'test_user'), 1)
 
 
 class ActiveUsersReduceTest(InitializeOpaqueKeysMixin, ReducerTestMixin, TestCase):
@@ -62,9 +62,9 @@ class ActiveUsersReduceTest(InitializeOpaqueKeysMixin, ReducerTestMixin, TestCas
             interval=luigi.DateIntervalParameter().parse('2017-02-01-2017-02-28'),
         )
 
-        self.reduce_key = 'test_user'
+        self.reduce_key = ('2017-02-13', '2017-02-20', 'test_user')
 
     def test_reducer(self):
         inputs = [(1), (1), (1)]
-        expected = (('2017-02-01', '2017-02-28', self.reduce_key), )
+        expected = (self.reduce_key,)
         self._check_output_complete_tuple(inputs, expected)
