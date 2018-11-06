@@ -26,6 +26,5 @@ pycparser==2.18           # via cffi
 pycrypto==2.6.1
 pynacl==1.2.1             # via paramiko
 pyyaml==3.12              # via ansible
->>>>>>> d87c1e8d6a57acfbde644f1660a2d399ea0c6b88
 six==1.10.0
 wheel==0.30.0
