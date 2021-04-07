@@ -148,9 +148,13 @@
         virtualenv --python={{ virtualenv_python }} {{ virtualenv_extra_args }} {{ working_venv_dir }}
       when: not virtualenv_created.stat.exists
 
-    - name: update pip
+   - name: update pip
       command: >
-        {{ working_venv_dir }}/bin/pip install -U "pip < 21.0"
+        {{ working_venv_dir }}/bin/pip install --index-url=https://pypi.org/simple/ -U "pip < 21.0"
+      retries: 10
+      delay: 5
+      register: result
+      until: result.rc == 0
 
     - name: virtualenv initialized on Debian
       shell: >
