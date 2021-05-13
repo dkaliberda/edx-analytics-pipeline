@@ -136,7 +136,7 @@
       when: ansible_distribution in common_redhat_variants
 
     - name: virtualenv installed
-      pip: name=virtualenv version=1.10.1
+      pip: name=virtualenv version=16.7.10
       sudo: True
 
     - name: check if virtualenv already created
@@ -150,11 +150,7 @@
 
     - name: update pip
       command: >
-        {{ working_venv_dir }}/bin/pip install --index-url=https://pypi.org/simple/ -U "pip < 21.0"
-      retries: 15
-      delay: 15
-      register: result
-      until: result.rc == 0
+        {{ working_venv_dir }}/bin/pip install -U pip==20.3.4
 
     - name: virtualenv initialized on Debian
       shell: >
