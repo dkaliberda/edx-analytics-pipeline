@@ -170,7 +170,7 @@ class MysqlInsertTask(MysqlInsertTaskMixin, luigi.Task):
     def rows(self):
         """Return/yield tuples or lists corresponding to each row to be inserted """
         log.info("Inside rows function.")
-        log.info("Input: %s", self.input()['insert_source'])
+        log.info("Input: %s. __dict__: %r", self.input()['insert_source'], self.input()['insert_source'].__dict__)
         with self.input()['insert_source'].open('r') as fobj:
             for line in fobj:
                 log.info("Line: %r", line)
